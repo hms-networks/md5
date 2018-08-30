@@ -1,0 +1,9 @@
+#Ignore output products
+Debug/
+Release/
+
+#Ignore artifacts from Visual Studio IDE
+*.opensdf
+*.sdf
+*.suo
+*.user
