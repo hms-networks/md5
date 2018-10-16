@@ -34,9 +34,6 @@
 #include "MD5.h"
 #include "MD5_port.h"
 
-#if( MD5_USE_16BIT_CHAR == 1 )
-#error "This mode of operation is not yet supported!"
-#endif
 
 #if( MD5_USE_BIG_ENDIAN == 1 )
 #error "This mode of operation is not yet supported!"
@@ -70,7 +67,7 @@ typedef UINT32 ( *MD5_t_DigestFunc )( UINT32 adwRegisters[] );
 typedef struct MD5_TestStruct
 {
    const char* acTestMsg;
-   const UINT8 abExpectedDigest[ MD5_DIGEST_SIZE ]; //TODO: Pack for MD5_USE_16BIT_CHAR
+   const UINT8 abExpectedDigest[ MD5_DIGEST_SIZE ];
 } MD5_TestStructType;
 
 /*******************************************************************************
@@ -82,6 +79,11 @@ typedef struct MD5_TestStruct
 ** Private Globals
 ********************************************************************************
 */
+#if( MD5_USE_16BIT_CHAR == 1 )
+   static const UINT8 bCharNumBytes = 2;
+#else
+   static const UINT8 bCharNumBytes = 1;
+#endif
 
 /*----------------------------------------------------------------------------
 ** Simple test case structure for specifying known/documented MD5 results
@@ -321,7 +323,7 @@ static UINT32 MD5_AUXILIARY_I( UINT32 adwBufferABCD[] )
 static UINT32 MD5_RotateLeft( UINT32 dwRegister, UINT8 bRotateCount )
 {
    const UINT8 bRegisterBitSize = 32;
-   UINT32 dwMask = ( 1 << bRotateCount ) - 1;
+   UINT32 dwMask = ( 1UL << bRotateCount ) - 1;
 
    return ( ( ( dwRegister >> ( bRegisterBitSize - bRotateCount ) ) & dwMask ) |
             ( ( dwRegister << bRotateCount ) & ~dwMask ) );
@@ -515,6 +517,7 @@ static void MD5_Print( MD5_InstType* psInst )
 */
 void MD5_Init( MD5_InstType* psInst )
 {
+
    const UINT32 adwInitState[ MD5_DIGEST_SIZE_DWORDS ] =
    {
       0x67452301,
@@ -525,7 +528,7 @@ void MD5_Init( MD5_InstType* psInst )
 
    psInst->iBlockOffset = 0;
    psInst->lTotalByteSize = 0;
-   MD5_MEMCPY( psInst->adwDigest, adwInitState, sizeof( psInst->adwDigest ) );
+   MD5_MEMCPY( psInst->adwDigest, adwInitState, sizeof( psInst->adwDigest ) * bCharNumBytes );
 }
 
 /*------------------------------------------------------------------------------
@@ -545,6 +548,9 @@ void MD5_Init( MD5_InstType* psInst )
 void MD5_Update( MD5_InstType* psInst, const UINT8* pbData, UINT16 iDataLen )
 {
    UINT8 bBytesLeftInBlock = MD5_BLOCK_SIZE - psInst->iBlockOffset;
+#if( MD5_USE_16BIT_CHAR == 1 )
+   UINT16 iOffset = 0;
+#endif
 
    psInst->lTotalByteSize += iDataLen;
 
@@ -554,10 +560,16 @@ void MD5_Update( MD5_InstType* psInst, const UINT8* pbData, UINT16 iDataLen )
    }
    else if( iDataLen >= bBytesLeftInBlock )
    {
+#if( MD5_USE_16BIT_CHAR == 1 )
+      MD5_PORT_CopyOctetsImpl( &psInst->uBlockBuffer.ab, psInst->iBlockOffset, pbData, 0, bBytesLeftInBlock );
+      iOffset += bBytesLeftInBlock;
+#else
       MD5_MEMCPY( &psInst->uBlockBuffer.ab[ psInst->iBlockOffset ], pbData, bBytesLeftInBlock );
+      pbData += bBytesLeftInBlock;
+#endif
       psInst->iBlockOffset = MD5_BLOCK_SIZE;
       iDataLen -= bBytesLeftInBlock;
-      pbData += bBytesLeftInBlock;
+
       MD5_ProcessBlock( psInst );
    }
 
@@ -569,11 +581,16 @@ void MD5_Update( MD5_InstType* psInst, const UINT8* pbData, UINT16 iDataLen )
       {
          iCopySize = MD5_BLOCK_SIZE;
       }
-
+#if( MD5_USE_16BIT_CHAR == 1 )
+      MD5_PORT_CopyOctetsImpl( &psInst->uBlockBuffer.ab, psInst->iBlockOffset, pbData,iOffset, iCopySize );
+      iOffset += iCopySize;
+#else
       MD5_MEMCPY( &psInst->uBlockBuffer.ab[ psInst->iBlockOffset ], pbData, iCopySize );
+      pbData += iCopySize;
+#endif
       psInst->iBlockOffset += iCopySize;
       iDataLen -= iCopySize;
-      pbData += iCopySize;
+
       MD5_ProcessBlock( psInst );
    }
 }
@@ -603,7 +620,11 @@ void MD5_UpdateByte( MD5_InstType* psInst, const UINT8 bValue, UINT16 iCount )
    }
    else if( iCount >= bBytesLeftInBlock )
    {
+#if( MD5_USE_16BIT_CHAR == 1 )
+      MD5_PORT_SetOctetsImpl( &psInst->uBlockBuffer.ab, psInst->iBlockOffset , bValue, bBytesLeftInBlock );
+#else
       MD5_MEMSET( &psInst->uBlockBuffer.ab[ psInst->iBlockOffset ], bValue, bBytesLeftInBlock );
+#endif
       psInst->iBlockOffset = MD5_BLOCK_SIZE;
       iCount -= bBytesLeftInBlock;
       MD5_ProcessBlock( psInst );
@@ -617,8 +638,11 @@ void MD5_UpdateByte( MD5_InstType* psInst, const UINT8 bValue, UINT16 iCount )
       {
          iCopySize = MD5_BLOCK_SIZE;
       }
-
+#if( MD5_USE_16BIT_CHAR == 1 )
+      MD5_PORT_SetOctetsImpl( &psInst->uBlockBuffer.ab, psInst->iBlockOffset, bValue, iCopySize );
+#else
       MD5_MEMSET( &psInst->uBlockBuffer.ab[ psInst->iBlockOffset ], bValue, iCopySize );
+#endif
       psInst->iBlockOffset += iCopySize;
       iCount -= iCopySize;
       MD5_ProcessBlock( psInst );
@@ -654,7 +678,7 @@ void MD5_Final( MD5_InstType* psInst )
    bBytesLeftInBlock = MD5_BLOCK_SIZE - ( psInst->iBlockOffset % MD5_BLOCK_SIZE );
 
    /* Append 0-padding bits + 64-bit length field. */
-   if( bBytesLeftInBlock < sizeof(UINT64) )
+   if( bBytesLeftInBlock < ( sizeof(UINT64) * bCharNumBytes ) )
    {
       /* There is not enough room to fit the 64-bit length into this block.
       ** Fill the remainder of the block with zeros, process it, and continue
@@ -663,14 +687,14 @@ void MD5_Final( MD5_InstType* psInst )
    }
 
    bBytesLeftInBlock = MD5_BLOCK_SIZE - ( psInst->iBlockOffset % MD5_BLOCK_SIZE );
-   bZeroPadLength = bBytesLeftInBlock - sizeof(UINT64);
+   bZeroPadLength = bBytesLeftInBlock - ( sizeof(UINT64) * bCharNumBytes );
 
    if( bZeroPadLength > 0 )
    {
       MD5_UpdateByte( psInst, 0, bZeroPadLength );
    }
 
-   MD5_Update( psInst, (UINT8*)&lTotalBitSize, sizeof(lTotalBitSize) );
+   MD5_Update( psInst, (UINT8*)&lTotalBitSize, sizeof(lTotalBitSize) * bCharNumBytes );
 }
 
 /*------------------------------------------------------------------------------
@@ -716,7 +740,14 @@ BOOL MD5_RunTests( MD5_InstType* psInst )
    {
       BOOL fMismatch        = FALSE;
       const char* acTestMsg = MD5_asTestCases[ bTestEntry ].acTestMsg;
-
+#if( MD5_USE_16BIT_CHAR == 1 )
+      UINT32 adwExpectedDigest[ MD5_DIGEST_SIZE_DWORDS ];
+      char acTestMsgPacked[ 256 ];
+      MD5_PORT_StrCpyToPackedImpl( acTestMsgPacked, 0, acTestMsg, strlen( acTestMsg ) );
+      MD5_Compute( psInst, (UINT8*)acTestMsgPacked, (UINT16)strlen( acTestMsg ) );
+      MD5_PORT_StrCpyToPackedImpl( &adwExpectedDigest, 0, &MD5_asTestCases[ bTestEntry ].abExpectedDigest, MD5_DIGEST_SIZE );
+      if( MD5_MEMCMP( psInst->adwDigest, adwExpectedDigest, MD5_DIGEST_SIZE ) != 0 )
+#else
       MD5_PRINTF( "TEST_%03d: MSG_SIZE = %ld\t: ", bTestEntry, (UINT32)strlen( acTestMsg ) );
 
       MD5_Compute( psInst, (UINT8*)acTestMsg, (UINT16)strlen( acTestMsg ) );
@@ -724,6 +755,7 @@ BOOL MD5_RunTests( MD5_InstType* psInst )
       if( MD5_MEMCMP( psInst->adwDigest,
                       MD5_asTestCases[ bTestEntry ].abExpectedDigest,
                       MD5_DIGEST_SIZE ) != 0 )
+#endif
       {
          fMismatch  = TRUE;
          fAllPassed = FALSE;
