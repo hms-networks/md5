@@ -10,6 +10,7 @@
 ********************************************************************************
 */
 #include "MD5.h"
+#include "MD5_port.h"
 
 #if( MD5_USE_16BIT_CHAR == 1 )
 
@@ -50,6 +51,31 @@ void MD5_PORT_CopyOctetsImpl( void* pxDest, UINT16 iDestOctetOffset,
       else
       {
          MD5_PORT_SetLowAddrOct( *piDest, iData );
+      }
+      fOddDestOctet ^= 1;
+   }
+}
+
+void MD5_PORT_SetOctetsImpl( void* pxDest, UINT16 iDestOctetOffset,
+                             UINT8 bValue,  UINT16 iNumOctets )
+{
+   UINT16 i;
+   BOOL fOddDestOctet;
+   UINT16* piDest;
+
+   fOddDestOctet = iDestOctetOffset & 1;
+   piDest =   (UINT16*)pxDest + ( iDestOctetOffset >> 1 );
+
+   for( i = 0; i < iNumOctets; i++ )
+   {
+      if( fOddDestOctet )
+      {
+         MD5_PORT_SetHighAddrOct( *piDest, bValue );
+         piDest++;
+      }
+      else
+      {
+         MD5_PORT_SetLowAddrOct( *piDest, bValue );
       }
       fOddDestOctet ^= 1;
    }

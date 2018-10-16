@@ -48,13 +48,9 @@
 /*
 ** Various macros that can be adapted as needed for the target.
 */
-//#define MD5_MEMCMP( a, b, size )        memcmp( a, b, (size + 1) >> 1 )
-//#define MD5_MEMCPY( dst, src, size )    MD5_StrCpyToPackedImpl( dst, src, (size + 1) >> 1 )
-//#define MD5_MEMCPY( dst, src, size )    memcpy( dst, src, (size + 1) >> 1 )
-//#define MD5_MEMSET( dst, val, size )    memset( dst, val, (size + 1) >> 1 )
-#define MD5_MEMCMP( a, b, size )        memcmp( a, b, size )
-#define MD5_MEMCPY( dst, src, size )    memcpy( dst, src, size )
-#define MD5_MEMSET( dst, val, size )    memset( dst, val, size )
+#define MD5_MEMCMP( a, b, size )        memcmp( a, b, (size + 1) >> 1 )
+#define MD5_MEMCPY( dst, src, size )    memcpy( dst, src, (size + 1) >> 1 )
+#define MD5_MEMSET( dst, val, size )    memset( dst, val, (size + 1) >> 1 )
 #else
 #define MD5_MEMCMP( a, b, size )        memcmp( a, b, size )
 #define MD5_MEMCPY( dst, src, size )    memcpy( dst, src, size )
@@ -69,6 +65,9 @@
 void MD5_PORT_CopyOctetsImpl( void* pxDest, UINT16 iDestOctetOffset,
                               const void* pxSrc, UINT16 iSrcOctetOffset,
                               UINT16 iNumOctets );
+
+void MD5_PORT_SetOctetsImpl( void* pxDest, UINT16 iDestOctetOffset,
+                             UINT8 bValue,  UINT16 iNumOctets );
 
 void MD5_PORT_StrCpyToNativeImpl( void* pxDest, const void* pxSrc,
                                   UINT16 iSrcOctetOffset, UINT16 iNbrOfChars );
