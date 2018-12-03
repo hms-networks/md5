@@ -139,7 +139,7 @@ void MD5_Compute( MD5_InstType* psInst, const UINT8* pbMsg, UINT16 iMsgLen );
 **    psInst  - Pointer to an instance containing the current state of the MD5
 **
 ** Returns:
-**    None
+**    BOOL - TRUE if all tests have passed.
 **------------------------------------------------------------------------------
 */
 BOOL MD5_RunTests( MD5_InstType* psInst );

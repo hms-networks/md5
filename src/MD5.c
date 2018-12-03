@@ -343,7 +343,7 @@ static UINT32 MD5_RotateLeft( UINT32 dwRegister, UINT8 bRotateCount )
 **             argument is within the correct bounds!
 **
 ** Returns:
-**    None
+**    UINT32 - Integer value of 'T' at 'i' radians.
 **------------------------------------------------------------------------------
 */
 static UINT32 MD5_GetValueT( UINT8 bIndex )
@@ -727,7 +727,7 @@ void MD5_Compute( MD5_InstType* psInst, const UINT8* pbMsg, UINT16 iMsgLen )
 **    psInst  - Pointer to an instance containing the current state of the MD5
 **
 ** Returns:
-**    None
+**    BOOL - TRUE if all tests have passed.
 **------------------------------------------------------------------------------
 */
 BOOL MD5_RunTests( MD5_InstType* psInst )
